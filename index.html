@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#e9ecf2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10131a" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ぜんぶ読み込み中">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<style>*,*::before,*::after{box-sizing:border-box}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<title>ぜんぶ読み込み中</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: one-screen app. Header with the "progress bar of progress bars", then a board of task tiles that fills the viewport. */
+:root{
+  --bg:#e9ecf2; --panel:#f7f8fb; --ink:#161a24; --muted:#5d6475; --track:#d6dbe5;
+  --fill:#2f4bd8; --fill-2:#4d66ea; --done:#161a24; --done-ink:#f7f8fb; --warn:#c2410c;
+  --line:rgba(22,26,36,.14);
+  --display:"DotGothic16","Osaka-Mono",ui-monospace,monospace;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10131a; --panel:#181c26; --ink:#e6e9f0; --muted:#949bad; --track:#262c3a;
+  --fill:#7389ff; --fill-2:#91a2ff; --done:#e6e9f0; --done-ink:#10131a; --warn:#fb923c;
+  --line:rgba(230,233,240,.14); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10131a; --panel:#181c26; --ink:#e6e9f0; --muted:#949bad; --track:#262c3a;
+  --fill:#7389ff; --fill-2:#91a2ff; --done:#e6e9f0; --done-ink:#10131a; --warn:#fb923c;
+  --line:rgba(230,233,240,.14); color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);display:flex;flex-direction:column;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px;box-sizing:border-box;gap:12px;overflow:hidden}
+header{display:flex;flex-direction:column;gap:10px}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(22px,4vw,32px);margin:0;letter-spacing:.04em;line-height:1}
+h1 small{font-size:.45em;color:var(--muted);margin-left:.6em;letter-spacing:.08em}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap}
+button{font:500 13px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--ink)}
+button:focus-visible{outline:2px solid var(--fill);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.meta{display:grid;grid-template-columns:1fr auto;gap:6px 14px;align-items:center}
+.meta-bar{height:14px;background:var(--track);border-radius:3px;overflow:hidden}
+.meta-bar i{display:block;height:100%;width:0;background:var(--ink);transition:width .3s}
+.meta-num{font-family:var(--display);font-size:20px;font-variant-numeric:tabular-nums;min-width:4.5em;text-align:right}
+.meta-sub{grid-column:1/-1;font-size:12px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+.meta-sub b{font-family:var(--display);font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums}
+#board{flex:1;min-height:0;position:relative;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));grid-auto-rows:74px;gap:8px;align-content:start;overflow:hidden}
+.t{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 11px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;position:relative;overflow:hidden;min-width:0;animation:pop .25s ease-out;user-select:none}
+@keyframes pop{from{transform:scale(.92);opacity:.3}}
+.t .nm{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;z-index:1}
+.t .row{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);position:relative;z-index:1}
+.t .row span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.t .pc{font-family:var(--display);font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
+.t .bar{position:absolute;left:0;bottom:0;height:4px;width:100%;background:var(--track)}
+.t .bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(-45deg,var(--fill) 0 8px,var(--fill-2) 8px 16px);background-size:22.6px 100%;animation:str .6s linear infinite}
+@keyframes str{to{background-position:22.6px 0}}
+.t.warn .row span:first-child{color:var(--warn)}
+.t.done{background:var(--done);border-color:var(--done);color:var(--done-ink);cursor:default}
+.t.done .row,.t.done .pc{color:var(--done-ink)}
+.t.done .row span:first-child{color:var(--done-ink);opacity:1}
+.t.done .bar{display:none}
+.t.done .pc{display:none}
+.t.done .row span:first-child{white-space:normal;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.t.boost{animation:bump .25s}
+@keyframes bump{50%{transform:scale(.97)}}
+.end{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--bg) 82%,transparent);z-index:5}
+.end div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px 26px;max-width:340px;text-align:center;display:flex;flex-direction:column;gap:12px}
+.end h2{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.end p{margin:0;font-size:13px;color:var(--muted);line-height:1.7}
+@media (prefers-reduced-motion:reduce){.t .bar i{animation:none}.t,.t.boost{animation:none}}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>ぜんぶ読み込み中<small>v0.99.9</small></h1>
+    <div class="ctrl">
+      <button id="add">タスクを追加</button>
+      <button id="fast" aria-pressed="false">早送り ×3</button>
+      <button id="combo" aria-pressed="false">組み合わせモード</button>
+      <button id="reset">最初から</button>
+    </div>
+  </div>
+  <div class="meta">
+    <div class="meta-bar" aria-hidden="true"><i id="metaFill"></i></div>
+    <div class="meta-num" id="metaNum">0.0%</div>
+    <div class="meta-sub">
+      <span>画面占有率（プログレスバーのプログレスバー）</span>
+      <span>完了 <b id="cDone">0</b> / 枠 <b id="cCap">0</b></span>
+      <span id="tip">バーをタップすると応援できます</span>
+    </div>
+  </div>
+</header>
+<main id="board" aria-live="polite"></main>
+
+<script>
+const JOKES=[
+"布団から出る決意をコンパイル中|起床に成功。二度寝は別プロセスで継続中","二度寝の許可を申請中|承認されました（自分で）","目覚ましのスヌーズを延長中|延長の上限に達しました","靴下の片方を捜索中|見つかりました。もう片方が消えました","洗濯物を自然乾燥中|乾きました。取り込むのは明日の自分","洗濯物をたたむ気力を充電中|充電完了。たたむのは別タスクです","部屋の片付けを脳内でシミュレーション中|脳内では完璧に片付きました","机の上を片付けるふりを実行中|物の位置が変わりました","冷蔵庫の残り物を最適化中|全部まとめて炒めることに決定","冷蔵庫を開けて閉じる動作を反復中|中身は変わっていませんでした","ゴミの日を思い出し中|思い出しました。昨日でした","鍵のありかを特定中|ポケットに入っていました","充電器のありかを特定中|コンセントに刺さったままでした","スマホを探すためにスマホを探し中|手に持っていました","メガネを探索中|頭の上にありました","傘を持っていくか検討中|持たずに出ました。降りました","エレベーターの閉ボタンを連打中|閉まりました。効果は不明です","信号が青になるのを待機中|青になりました。走ります","満員電車に自分を圧縮中|圧縮率120%を達成","観葉植物に水をやるか検討中|昨日もあげていました","お風呂に入る決意を形成中|入りました。出るのにまた決意が必要です","髪を乾かす気力を探索中|自然乾燥に切り替えました","爪を切るタイミングを計測中|切りました。深爪です","日焼け止めを塗り直し中|すでに焼けていました","ポイントカードを探索中|財布の奥で発見。期限切れでした","レシートを財布から排出中|財布が半分の厚さになりました","財布の中身を再計算中|計算し直しても増えませんでした","サブスクの存在を思い出し中|毎月払っていました","家計簿をつける決意を再起動中|三日坊主モードで起動しました","引っ越しの段ボールを開封中|三年目にして開封しました",
+"月曜日の気配を読み込み中|月曜日が到着しました","会議のための会議を準備中|次の会議の日程が決まりました","上司のひとことを再解釈中|深い意味はありませんでした","「お世話になっております」を生成中|お世話になりました","「お疲れさまです」を自動挿入中|全メールに挿入しました","メールの返信を寝かせ中|熟成しすぎました","「確認します」を送信中|送信しました。まだ確認していません","「後ほど」の後ほどを計算中|後ほどになりました","締め切りを遠くに配置中|締め切りは近づいてきます","締め切りを延ばす言い訳を生成中|候補が12個できました","資料のフォントについて悩み中|結局いつものフォントにしました","スライドの余白を1px調整中|誰も気づきませんでした","エクセルのセルを結合中|結合しました。後悔しています","「最終版_本当の最終版」を保存中|「最終版_2」を作成しました","デスクトップのアイコンを整列中|一時的に整いました","パスワードを思い出し中|リセットしました","パスワードの使い回しを反省中|反省しました。変えてはいません","VPNにつなぎ直し中|つながりました。何をするんでしたっけ","定時の概念を読み込み中|概念のまま終了しました","有給の申請画面を開き中|開きました。閉じました","ランチの店を3分で決定中|いつもの店に決まりました","「あとでやる」をキャッシュ中|キャッシュがいっぱいです","ToDoリストのToDoリストを作成中|リストが2枚になりました","集中モードに移行中|移行した瞬間に通知が来ました","マウスカーソルを探索中|画面の端にいました","プリンターの機嫌をうかがい中|紙詰まりです","コピー機の順番を待機中|前の人が200部刷っています","名刺を切らしている言い訳を準備中|使いませんでした","オンライン会議のミュートを確認中|ずっとミュートでした","カメラをオフにする理由を生成中|「回線が不安定で」で確定",
+"晩ごはんの候補を絞り込み中|結局カレーになりました","プリンのカラメル層を同期中|プリンとカラメルが一つになりました","おでんの大根に味を染み込ませ中|中心まで染みました","カップ麺の3分を待機中|2分で食べ始めました","カップ麺のお湯を線まで注ぎ中|線を越えました","パンの焼き加減を監視中|目を離した隙に焦げました","ラーメンの麺の硬さを選択中|ふつうにしました","お米を研ぐ回数を議論中|3回で合意しました","卵の賞味期限を確認中|見なかったことにしました","コーヒーで目を覚まし中|目は覚めました。眠気も残っています","コンビニの新作をスキャン中|いつものを買いました","ダイエットの開始日を調整中|明日から本気出します","デザート用の別腹の容量を確認中|別腹に空きがありました","アイスの当たり棒を判定中|はずれ","ピザを均等に切り分け中|一切れだけ大きくなりました","鍋の締めを議論中|雑炊派が勝ちました","冷めたポテトを再加熱中|しなしなで復活しました","お弁当のおかずを詰め込み中|ふたが閉まりません","フルーツの食べごろを待機中|過ぎました","麦茶を冷蔵庫で冷却中|空のまま戻されていました",
+"既読スルーの理由を解析中|ただ寝ていただけでした","返信の文面を推敲中|「了解」で送信しました","送るスタンプを選択中|いつものスタンプで送信しました","「元気？」への返事を生成中|「元気！」で送信。実は眠い","グループLINEの流れに追いつき中|追いつきました。話題は終わっていました","友達の誕生日を思い出し中|昨日でした","推しの尊さを測定中|測定不能。上限を超えました","推しの新情報を受信中|受信しました。今夜は寝られません","初対面の人の名前を記憶中|3秒で忘れました","愛想笑いを生成中|口角を2mm上げました","猫の機嫌をダウンロード中|機嫌は良好。ただし撫でるのは禁止","キーボードの上の猫と交渉中|猫が勝ちました","犬の散歩の気配を察知中|リードを持つ前に玄関にいました","飲み会の断り文句を生成中|結局行きました","「行けたら行く」を送信中|行きませんでした",
+"Wi-Fiの機嫌をうかがい中|機嫌が直りました。理由は不明です","更新プログラムを更新中|更新プログラムが更新されました","再起動のタイミングを先送り中|明日に先送りしました","利用規約を読んだことに設定中|同意しました","通知の山を見なかったことに中|未読が999+になりました","写真フォルダを整理中|スクショが4000枚ありました","クラウドの容量を空け中|1枚消して満足しました","スマホの充電を1%から救出中|100%になりました。すぐ減ります","イヤホンの絡まりをほどき中|ほどけました。片耳が聞こえません","ブラウザのタブを閉じる勇気を充電中|新しいタブを開きました","検索履歴を見なかったことに中|見なかったことにしました","アプリのアップデートを保留中|「後で」を押しました","動画の広告のスキップを待機中|5秒たちました","おすすめ動画の沼から脱出中|あと1本だけ見ます","自撮りの角度を微調整中|最初の1枚が一番でした","テレビのリモコンを捜索中|ソファの隙間で発見しました","キーボードの上の猫を検知中|asdfghjkl と入力されました",
+"天気予報を信じる準備中|晴れの予報で雨でした","こたつから出る理由を探索中|見つかりませんでした","扇風機の首振りを追跡中|風が来ました","花粉の到着を検知中|到着しました","梅雨明けを待機中|明けました。暑いです","夏休みの宿題を最終日に圧縮中|間に合いました（主観）","年賀状を書く決意を形成中|あけおめLINEで代用しました","大掃除の範囲を縮小中|引き出し1段に決定","冬眠の準備を実行中|春まで終了しません","衣替えの段ボールを開封中|半袖と長袖が混ざりました",
+"やる気をインストール中|完了。起動には別途やる気が必要です","眠気をアンインストール中|アンインストールに失敗しました","気合いをバッファリング中|気合いが溜まりました","ため息を圧縮中|ため息がひとつ減りました","昨日の自分にパッチを適用中|昨日の自分は修正できませんでした","明日の自分に期待を転送中|転送しました。受信拒否されるかも","アイデアを寝かせ中|寝かせすぎて忘れました","積読を一冊だけ消化中|二冊買いました","筋トレの初日を延期中|初日は来週です","早起きのモチベーションを予約中|予約は明日の朝に失効します","人生の選択肢を再評価中|このままで行きます","将来の夢を更新中|「楽をしたい」で確定","深呼吸を実行中|吸って、吐きました","自分を褒めるタイミングを探索中|今褒めました","現実逃避を実行中|現実に戻されました","ネガティブ思考をデフラグ中|少し前向きに並びました","寝る前の反省会を開催中|議題が多すぎて寝ました","今日やったことを水増し中|それなりの一日になりました","週末を前倒しで展開中|まだ水曜日でした",
+"このバーのためのバーを読み込み中|このバーは読み込み完了です","ローディング画面を読み込み中|ローディング画面が表示されました","進捗率を盛って表示中|実際は42%です","残り時間を適当に計算中|計算結果はたぶんです","99%から先の道のりを準備中|道のりが整いました","くるくる回るアイコンを回転中|十分に回しました","プログレスバーに色を塗り中|塗り終わりました","「読み込み中」の文字を読み込み中|「読み込み中」が読み込まれました","このタスクの意味を検討中|意味はありませんでした","既定のフォントについて悩み中|既定のままにしました"];
+const DONE=["完了","できた。たぶん","完了（感想は控えます）","済み。拍手をどうぞ","終わった。次もこの調子で","100%。人生でいちばん","完了。誰も見てなかった","無事に終了。奇跡","はい、できました"];
+const ETAS=["残り 3分","残り 12分","残り 2時間","残り 4日","残り 7年","残り 1世紀","やっぱり 5秒"];
+const CHEER=["応援ありがとう","効いてます","がんばってます","その調子で押して","指の力を感じる"];
+const board=document.getElementById('board');
+let tasks=[],speed=1,spawnT=0,ended=false,pool=[],combo=false;
+const pick=a=>a[Math.random()*a.length|0];
+
+const OBJS=[],VERBS=[];
+for(const j of JOKES){const n=j.split('|')[0],k=n.lastIndexOf('を');if(k>0){OBJS.push(n.slice(0,k));VERBS.push(n.slice(k+1))}}
+function nextJoke(){
+  if(combo)return {name:pick(OBJS)+'を'+pick(VERBS),done:pick(DONE)};
+  if(!pool.length)pool=[...JOKES].sort(()=>Math.random()-.5);
+  const [name,done]=pool.pop().split('|');
+  return {name,done};
+}
+function capacity(){
+  const cs=getComputedStyle(board);
+  const cols=cs.gridTemplateColumns.split(' ').filter(Boolean).length||1;
+  const rows=Math.max(1,Math.floor((board.clientHeight+8)/(74+8)));
+  return cols*rows;
+}
+function spawn(){
+  if(ended||tasks.length>=capacity())return;
+  const r=Math.random();
+  const type=r<.16?'stall':r<.30?'back':r<.42?'eta':r<.48?'instant':'normal';
+  const el=document.createElement('div');
+  el.className='t';el.tabIndex=0;el.setAttribute('role','button');
+  el.innerHTML='<div class="nm"></div><div class="row"><span class="msg"></span><span class="pc">0%</span></div><div class="bar"><i></i></div>';
+  const t={el,type,p:0,v:6+Math.random()*16,done:false,phase:0,timer:0,eta:0,
+    nm:el.querySelector('.nm'),msg:el.querySelector('.msg'),pc:el.querySelector('.pc'),bar:el.querySelector('.bar i')};
+  const j=nextJoke();t.doneMsg=j.done;
+  t.nm.textContent=j.name;t.nm.title=j.name;
+  t.msg.textContent=type==='eta'?ETAS[0]:'処理中…';
+  const boost=()=>{if(t.done)return;t.p=Math.min(t.type==='stall'&&t.phase<2?99:100,t.p+8);t.msg.textContent=pick(CHEER);t.el.classList.remove('boost');void t.el.offsetWidth;t.el.classList.add('boost')};
+  el.addEventListener('click',boost);
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();boost()}});
+  board.appendChild(el);tasks.push(t);
+  if(type==='instant'){t.p=100;finish(t)}
+}
+function finish(t,msg){
+  t.done=true;t.p=100;t.el.classList.remove('warn');t.el.classList.add('done');
+  t.msg.textContent=msg||t.doneMsg||pick(DONE);t.msg.title=t.msg.textContent;t.pc.textContent='100%';t.el.removeAttribute('role');t.el.tabIndex=-1;
+}
+function step(t,dt){
+  if(t.done)return;
+  const s=dt*speed;
+  if(t.type==='stall'){
+    if(t.phase===0){t.p+=t.v*s;if(t.p>=99){t.p=99;t.phase=1;t.msg.textContent='99%… ここからが長い';t.el.classList.add('warn')}}
+    else if(t.phase===1){t.timer+=s;if(t.timer>2.5){t.msg.textContent='最後の1%は気持ちの問題';}if(t.timer>5){t.phase=2}}
+    else{t.p+=40*s}
+    if(t.p>=100)return finish(t);
+  }else if(t.type==='back'){
+    if(t.phase===0){t.p+=t.v*s;if(t.p>=62){t.phase=1;t.msg.textContent='あれ、戻ってる？';t.el.classList.add('warn')}}
+    else if(t.phase===1){t.p-=28*s;if(t.p<=24){t.phase=2;t.msg.textContent='一歩下がって二歩進む方針';t.el.classList.remove('warn')}}
+    else t.p+=t.v*1.6*s;
+    if(t.p>=100)return finish(t);
+  }else if(t.type==='eta'){
+    t.p+=t.v*.7*s;
+    const i=Math.min(ETAS.length-1,Math.floor(t.p/100*ETAS.length));
+    if(i!==t.eta){t.eta=i;t.msg.textContent=ETAS[i];t.el.classList.toggle('warn',i>=3&&i<6)}
+    if(t.p>=100)return finish(t);
+  }else{
+    t.p+=t.v*s;
+    if(t.p>=100)return finish(t);
+  }
+  t.pc.textContent=Math.floor(t.p)+'%';
+}
+function render(){
+  const cap=capacity();
+  let sum=0,done=0;
+  for(const t of tasks.slice(0,cap)){sum+=Math.min(100,t.p);if(t.done)done++}
+  const pct=sum/(cap*100)*100;
+  document.getElementById('metaFill').style.width=pct+'%';
+  document.getElementById('metaNum').textContent=(pct>=99.95&&done<cap?99.9:pct).toFixed(1)+'%';
+  document.getElementById('cDone').textContent=done;
+  document.getElementById('cCap').textContent=cap;
+  for(const t of tasks)t.bar.style.width=Math.min(100,t.p)+'%';
+  if(!ended&&done>=cap&&tasks.length>=cap)end(done);
+}
+function end(n){
+  ended=true;
+  const d=document.createElement('div');d.className='end';
+  d.innerHTML='<div><h2>画面が埋まりました</h2><p>'+n+'件のどうでもいいタスクが完了しました。<br>何も進んでいませんが、達成感だけはあります。</p><button id="again">もう一度埋める</button></div>';
+  board.appendChild(d);
+  d.querySelector('#again').addEventListener('click',reset);
+  d.querySelector('#again').focus();
+}
+function reset(){
+  board.innerHTML='';tasks=[];ended=false;spawnT=0;
+  for(let i=0;i<3;i++)spawn();
+}
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.1,(now-last)/1000);last=now;
+  if(!ended){
+    spawnT-=dt*speed;
+    if(spawnT<=0){spawn();spawnT=Math.max(.35,1.6-tasks.length*.03)}
+    for(const t of tasks)step(t,dt);
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+document.getElementById('add').addEventListener('click',spawn);
+document.getElementById('reset').addEventListener('click',reset);
+const fast=document.getElementById('fast');
+fast.addEventListener('click',()=>{speed=speed===1?3:1;fast.setAttribute('aria-pressed',speed===3)});
+const comboBtn=document.getElementById('combo');
+comboBtn.addEventListener('click',()=>{combo=!combo;comboBtn.setAttribute('aria-pressed',combo)});
+reset();requestAnimationFrame(loop);
+</script>
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));</script>
+</body>
+</html>
